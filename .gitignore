@@ -1,7 +1,39 @@
+# 依赖
+node_modules/
+web/node_modules/
 
-.DS_Store
-node_modules
+# 锁文件
 package-lock.json
+web/package-lock.json
+
+# 数据库和敏感数据
+data/
+*.db
+*.db-journal
+*.db-wal
+
+# 前端构建产物
+web/dist/
+
+# 日志
+logs/
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 环境变量
+.env
+.env.*
+
+# 旧文件
 game.js
 /game
-logs/
