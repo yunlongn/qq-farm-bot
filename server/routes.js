@@ -115,10 +115,19 @@ router.get('/accounts', (req, res) => {
             // 普通用户能看到所有账号，但标记哪些是自己的
             const adminUser = db.getAdminUserById(req.user.id);
             const allowed = (adminUser?.allowed_uins || '').split(',').map(s => s.trim()).filter(Boolean);
-            accounts = accounts.map(a => ({
-                ...a,
-                isOwn: allowed.includes(a.uin),
-            }));
+            accounts = accounts.map(a => {
+                const isOwn = allowed.includes(a.uin);
+                if (isOwn) return { ...a, isOwn: true };
+                // 非自己的账号：QQ号和昵称脱敏
+                const maskedUin = a.uin.slice(0, 3) + '****' + a.uin.slice(-2);
+                const maskedNick = a.nickname ? a.nickname.charAt(0) + '***' : '';
+                return {
+                    ...a,
+                    uin: maskedUin,
+                    nickname: maskedNick,
+                    isOwn: false,
+                };
+            });
             // 自己的账号排前面
             accounts.sort((a, b) => (b.isOwn ? 1 : 0) - (a.isOwn ? 1 : 0));
         } else {

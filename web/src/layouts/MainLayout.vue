@@ -18,7 +18,7 @@
           popper-class="dark-select-popper"
         >
           <el-option
-            v-for="acc in accounts"
+            v-for="acc in ownAccounts"
             :key="acc.uin"
             :value="acc.uin"
           >
@@ -165,9 +165,9 @@
         <el-icon :size="28" color="#67C23A"><Sunny /></el-icon>
         <span class="logo-text">QQ农场助手</span>
       </div>
-      <div class="account-selector" v-if="accounts.length > 0">
+      <div class="account-selector" v-if="ownAccounts.length > 0">
         <el-select v-model="currentUin" placeholder="选择账号" size="small" @change="onAccountChange" style="width:100%">
-          <el-option v-for="acc in accounts" :key="acc.uin" :label="`${acc.nickname || acc.uin}`" :value="acc.uin" />
+          <el-option v-for="acc in ownAccounts" :key="acc.uin" :label="`${acc.nickname || acc.uin}`" :value="acc.uin" />
         </el-select>
       </div>
       <nav class="sidebar-nav">
@@ -217,6 +217,9 @@ const mobileMenuOpen = ref(false)
 const accounts = ref([])
 const currentUin = ref('')
 
+// 只包含自己的账号（用于侧边栏选择器）
+const ownAccounts = computed(() => accounts.value.filter(a => a.isOwn))
+
 const pageTitle = computed(() => {
   const titles = {
     Dashboard: '总览',
@@ -244,6 +247,13 @@ async function fetchAccounts() {
   try {
     const res = await getAccounts()
     accounts.value = res.data || []
+    // 如果当前选中的账号已被删除或不再属于自己
+    if (currentUin.value && !ownAccounts.value.find(a => a.uin === currentUin.value)) {
+      currentUin.value = ''
+      if (route.name !== 'Dashboard' && route.name !== 'AdminUsers') {
+        router.push('/dashboard')
+      }
+    }
     autoSelectFirst()
   } catch { /* ignore */ }
 }
@@ -255,16 +265,8 @@ watch(() => route.params.uin, (uin) => {
 
 // Socket.io 实时更新
 function onAccountsList(data) {
-  accounts.value = data || []
-  // 如果当前选中的账号已被删除，清除选择
-  if (currentUin.value && !accounts.value.find(a => a.uin === currentUin.value)) {
-    currentUin.value = ''
-    // 导航到总览页
-    if (route.name !== 'Dashboard' && route.name !== 'AdminUsers') {
-      router.push('/dashboard')
-    }
-  }
-  autoSelectFirst()
+  // Socket.io 推送的列表没有 isOwn 标记，重新通过 API 拉取
+  fetchAccounts()
 }
 function onStatusChange(data) {
   const idx = accounts.value.findIndex(a => a.uin === data.userId)
@@ -285,11 +287,11 @@ function onStatusChange(data) {
 }
 
 function autoSelectFirst() {
-  if (!currentUin.value && accounts.value.length > 0) {
-    currentUin.value = accounts.value[0].uin
+  if (!currentUin.value && ownAccounts.value.length > 0) {
+    currentUin.value = ownAccounts.value[0].uin
     // 如果在总览页，自动跳转到该账号首页
     if (route.name === 'Dashboard') {
-      router.push(`/account/${accounts.value[0].uin}`)
+      router.push(`/account/${ownAccounts.value[0].uin}`)
     }
   }
 }
