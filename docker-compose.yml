@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  qq-farm-bot:
+    build: .
+    container_name: qq-farm-bot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 持久化数据库，防止容器重建后数据丢失
+      - ./data:/app/data
+    environment:
+      - PORT=3000
+      # 生产环境请修改为你自己的加密密钥（32字符）
+      - BOT_ENCRYPT_KEY=qq-farm-bot-default-key-32bytes!

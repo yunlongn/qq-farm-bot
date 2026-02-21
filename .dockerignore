@@ -1,0 +1,14 @@
+node_modules/
+web/node_modules/
+web/dist/
+data/
+logs/
+*.log
+.git
+.gitignore
+.vscode/
+.idea/
+*.md
+LICENSE
+docs/
+tools/
