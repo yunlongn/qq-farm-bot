@@ -158,6 +158,11 @@ async function initDatabase() {
 
     // 迁移: 添加 preferred_seed_id 列
     try { db.run(`ALTER TABLE users ADD COLUMN preferred_seed_id INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    // 迁移: 添加 friend_time_range 列
+    try { db.run(`ALTER TABLE users ADD COLUMN friend_time_range TEXT`); } catch (e) { /* 列已存在 */ }
+    // 迁移: 添加农场操作随机延迟列
+    try { db.run(`ALTER TABLE users ADD COLUMN farm_operation_min_delay INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    try { db.run(`ALTER TABLE users ADD COLUMN farm_operation_max_delay INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
 
     saveToFile();
 

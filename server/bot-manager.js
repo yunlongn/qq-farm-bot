@@ -216,6 +216,9 @@ class BotManager extends EventEmitter {
             farmInterval: opts.farmInterval || CONFIG.farmCheckInterval,
             friendInterval: opts.friendInterval || CONFIG.friendCheckInterval,
             preferredSeedId: opts.preferredSeedId || 0,
+            friendTimeRange: opts.friendTimeRange,
+            farmOperationMinDelay: opts.farmOperationMinDelay || 0,
+            farmOperationMaxDelay: opts.farmOperationMaxDelay || 0,
         });
 
         // 监听事件并转发给 BotManager 的事件总线
@@ -275,6 +278,9 @@ class BotManager extends EventEmitter {
             farmInterval: user?.farm_interval || 10000,
             friendInterval: user?.friend_interval || 10000,
             preferredSeedId: user?.preferred_seed_id || 0,
+            friendTimeRange: user?.friend_time_range,
+            farmOperationMinDelay: user?.farm_operation_min_delay || 0,
+            farmOperationMaxDelay: user?.farm_operation_max_delay || 0,
         });
     }
 
@@ -302,13 +308,16 @@ class BotManager extends EventEmitter {
     /**
      * 修改账号配置
      */
-    updateAccountConfig(uin, { farmInterval, friendInterval, autoStart, platform, preferredSeedId }) {
+    updateAccountConfig(uin, { farmInterval, friendInterval, autoStart, platform, preferredSeedId, friendTimeRange, farmOperationMinDelay, farmOperationMaxDelay }) {
         const updates = {};
         if (farmInterval !== undefined) updates.farm_interval = farmInterval;
         if (friendInterval !== undefined) updates.friend_interval = friendInterval;
         if (autoStart !== undefined) updates.auto_start = autoStart ? 1 : 0;
         if (platform !== undefined) updates.platform = platform;
         if (preferredSeedId !== undefined) updates.preferred_seed_id = preferredSeedId;
+        if (friendTimeRange !== undefined) updates.friend_time_range = friendTimeRange;
+        if (farmOperationMinDelay !== undefined) updates.farm_operation_min_delay = farmOperationMinDelay;
+        if (farmOperationMaxDelay !== undefined) updates.farm_operation_max_delay = farmOperationMaxDelay;
         db.updateUser(uin, updates);
 
         // 如果 Bot 正在运行，更新运行时配置
@@ -317,6 +326,9 @@ class BotManager extends EventEmitter {
             if (farmInterval !== undefined) bot.farmInterval = farmInterval;
             if (friendInterval !== undefined) bot.friendInterval = friendInterval;
             if (preferredSeedId !== undefined) bot.setPreferredSeedId(preferredSeedId);
+            if (friendTimeRange !== undefined) bot.friendTimeRange = friendTimeRange;
+            if (farmOperationMinDelay !== undefined) bot.farmOperationMinDelay = farmOperationMinDelay;
+            if (farmOperationMaxDelay !== undefined) bot.farmOperationMaxDelay = farmOperationMaxDelay;
         }
     }
 

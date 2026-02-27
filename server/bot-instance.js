@@ -63,6 +63,10 @@ class BotInstance extends EventEmitter {
      * @param {string} opts.platform - 'qq' | 'wx'
      * @param {number} opts.farmInterval - 农场巡查间隔 ms
      * @param {number} opts.friendInterval - 好友巡查间隔 ms
+     * @param {number} opts.preferredSeedId - 好友巡查间隔 ms
+     * @param {number} opts.friendTimeRange - 好友巡查间隔 ms
+     * @param {number} opts.farmOperationMaxDelay - 好友巡查间隔 ms
+     * @param {number} opts.farmOperationMinDelay - 好友巡查间隔 ms
      */
     constructor(userId, opts = {}) {
         super();
@@ -71,6 +75,9 @@ class BotInstance extends EventEmitter {
         this.farmInterval = opts.farmInterval || CONFIG.farmCheckInterval;
         this.friendInterval = opts.friendInterval || CONFIG.friendCheckInterval;
         this.preferredSeedId = opts.preferredSeedId || 0; // 0 = 自动选择
+        this.friendTimeRange = opts.friendTimeRange;
+        this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
+        this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 5;
 
         // ---------- 运行状态 ----------
         this.status = 'idle'; // idle | qr-pending | connecting | running | stopped | error
@@ -944,9 +951,36 @@ class BotInstance extends EventEmitter {
 
             const actions = [];
             const batchOps = [];
-            if (status.needWeed.length > 0) batchOps.push(this.weedOut(status.needWeed).then(() => actions.push(`🌿除草×${status.needWeed.length}`)).catch(e => this.logWarn('除草', e.message)));
-            if (status.needBug.length > 0) batchOps.push(this.insecticide(status.needBug).then(() => actions.push(`🐛除虫×${status.needBug.length}`)).catch(e => this.logWarn('除虫', e.message)));
-            if (status.needWater.length > 0) batchOps.push(this.waterLand(status.needWater).then(() => actions.push(`💦浇水×${status.needWater.length}`)).catch(e => this.logWarn('浇水', e.message)));
+            if (status.needWeed.length > 0) {
+                batchOps.push(
+                    (async () => {
+                        const delay = this._getRandomFarmOperationDelay();
+                        if (delay > 0) await sleep(delay * 1000);
+                        await this.weedOut(status.needWeed);
+                        actions.push(`🌿除草×${status.needWeed.length}`);
+                    })().catch(e => this.logWarn('除草', e.message))
+                );
+            }
+            if (status.needBug.length > 0) {
+                batchOps.push(
+                    (async () => {
+                        const delay = this._getRandomFarmOperationDelay();
+                        if (delay > 0) await sleep(delay * 1000);
+                        await this.insecticide(status.needBug);
+                        actions.push(`🐛除虫×${status.needBug.length}`);
+                    })().catch(e => this.logWarn('除虫', e.message))
+                );
+            }
+            if (status.needWater.length > 0) {
+                batchOps.push(
+                    (async () => {
+                        const delay = this._getRandomFarmOperationDelay();
+                        if (delay > 0) await sleep(delay * 1000);
+                        await this.waterLand(status.needWater);
+                        actions.push(`💦浇水×${status.needWater.length}`);
+                    })().catch(e => this.logWarn('浇水', e.message))
+                );
+            }
             if (batchOps.length > 0) await Promise.all(batchOps);
 
             let harvestedLandIds = [];
@@ -1239,7 +1273,8 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needWeed) {
                     try { await this.helpWeed(gid, [landId]); ok++; } catch (e) { }
-                    await sleep(100);
+                    const delay = this._getRandomFarmOperationDelay();
+                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`🌿除草×${ok}`); totalActions.weed += ok; this.dailyStats.helpWeed += ok; }
             } else {
@@ -1253,7 +1288,8 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needBug) {
                     try { await this.helpInsecticide(gid, [landId]); ok++; } catch (e) { }
-                    await sleep(100);
+                    const delay = this._getRandomFarmOperationDelay();
+                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`🐛除虫×${ok}`); totalActions.bug += ok; this.dailyStats.helpPest += ok; }
             } else {
@@ -1267,7 +1303,8 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needWater) {
                     try { await this.helpWater(gid, [landId]); ok++; } catch (e) { }
-                    await sleep(100);
+                    const delay = this._getRandomFarmOperationDelay();
+                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`💦浇水×${ok}`); totalActions.water += ok; this.dailyStats.helpWater += ok; }
             } else {
@@ -1375,9 +1412,44 @@ class BotInstance extends EventEmitter {
         }
     }
 
+    _isInFriendTimeRange() {
+        if (!this.friendTimeRange || !this.friendTimeRange[0] || !this.friendTimeRange[1]) {
+            return true; // 没有设置时间范围，全天候巡查
+        }
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = currentHour * 60 + currentMinute;
+        
+        const [startTime, endTime] = this.friendTimeRange;
+        const [startHour, startMinute] = startTime.split(':').map(Number);
+        const [endHour, endMinute] = endTime.split(':').map(Number);
+        const startTimeMinutes = startHour * 60 + startMinute;
+        const endTimeMinutes = endHour * 60 + endMinute;
+        
+        if (startTimeMinutes <= endTimeMinutes) {
+            // 时间范围在同一天内
+            return currentTime >= startTimeMinutes && currentTime <= endTimeMinutes;
+        } else {
+            // 时间范围跨天
+            return currentTime >= startTimeMinutes || currentTime <= endTimeMinutes;
+        }
+    }
+
+    _getRandomFarmOperationDelay() {
+        if (this.farmOperationMinDelay === 0 && this.farmOperationMaxDelay === 0) {
+            return 0;
+        }
+        const min = Math.max(0, this.farmOperationMinDelay);
+        const max = Math.max(min, this.farmOperationMaxDelay);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
     async friendCheckLoop() {
         while (this.friendLoopRunning) {
-            await this.checkFriends();
+            if (this._isInFriendTimeRange()) {
+                await this.checkFriends();
+            }
             if (!this.friendLoopRunning) break;
             await sleep(this.friendInterval);
         }
@@ -2164,6 +2236,9 @@ class BotInstance extends EventEmitter {
             userState: { ...this.userState },
             farmInterval: this.farmInterval,
             friendInterval: this.friendInterval,
+            friendTimeRange: this.friendTimeRange,
+            farmOperationMinDelay: this.farmOperationMinDelay,
+            farmOperationMaxDelay: this.farmOperationMaxDelay,
             startedAt: this.startedAt,
             uptime: this.startedAt ? Date.now() - this.startedAt : 0,
             featureToggles: { ...this.featureToggles },

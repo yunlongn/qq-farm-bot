@@ -12,6 +12,25 @@
           <el-input-number v-model="friendIntervalSec" :min="1" :max="3600" :step="1" />
           <span class="unit">秒 (最低1秒)</span>
         </el-form-item>
+        <el-form-item label="好友巡查时间范围" label-width="140px">
+          <el-time-picker
+            v-model="friendTimeRange"
+            is-range
+            arrow-control
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            format="HH:mm"
+            value-format="HH:mm"
+          />
+          
+          <span class="unit">留空则全天候巡查</span>
+        </el-form-item>
+        <el-form-item label="农场操作随机延迟" label-width="140px">
+          <el-input-number v-model="farmOperationMinDelay" :min="0" :max="300" :step="1" style="width: 100px" />
+          <span class="unit">秒 至</span>
+          <el-input-number v-model="farmOperationMaxDelay" :min="0" :max="300" :step="1" style="width: 100px" />
+          <span class="unit">秒</span>
+        </el-form-item>
         <el-form-item label="指定种植作物">
           <el-select
             v-model="preferredSeedId"
@@ -103,6 +122,9 @@ const props = defineProps({ uin: String })
 
 const farmIntervalSec = ref(1)
 const friendIntervalSec = ref(10)
+const friendTimeRange = ref([])
+const farmOperationMinDelay = ref(0)
+const farmOperationMaxDelay = ref(0)
 const preferredSeedId = ref(29999)  // 29999 = 白萝卜仙人
 const saving = ref(false)
 const userLevel = ref(1)
@@ -121,6 +143,11 @@ async function fetchConfig() {
     userLevel.value = data.userState?.level || 1
     // 显式判断，保留 0 表示自动选择
     preferredSeedId.value = data.preferredSeedId ?? 0
+    // 加载好友巡查时间范围
+    friendTimeRange.value = data.friendTimeRange || null
+    // 加载农场操作随机延迟
+    farmOperationMinDelay.value = data.farmOperationMinDelay || 0
+    farmOperationMaxDelay.value = data.farmOperationMaxDelay || 0
   } catch { /* */ }
 }
 
@@ -130,6 +157,9 @@ async function saveConfig() {
     await updateAccountConfig(props.uin, {
       farmInterval: farmIntervalSec.value * 1000,
       friendInterval: friendIntervalSec.value * 1000,
+      friendTimeRange: friendTimeRange.value,
+      farmOperationMinDelay: farmOperationMinDelay.value,
+      farmOperationMaxDelay: farmOperationMaxDelay.value,
       preferredSeedId: preferredSeedId.value || 0,
     })
     ElMessage.success('配置已保存')
