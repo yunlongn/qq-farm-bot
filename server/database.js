@@ -163,6 +163,8 @@ async function initDatabase() {
     // 迁移: 添加农场操作随机延迟列
     try { db.run(`ALTER TABLE users ADD COLUMN farm_operation_min_delay INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
     try { db.run(`ALTER TABLE users ADD COLUMN farm_operation_max_delay INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    // 迁移: 添加调试模式列
+    try { db.run(`ALTER TABLE users ADD COLUMN debug_mode INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
 
     saveToFile();
 

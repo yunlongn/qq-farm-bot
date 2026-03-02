@@ -129,6 +129,10 @@
             <span class="toggle-label">使用化肥礼包 <el-tooltip content="自动使用化肥礼包填充容器" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
             <el-switch v-model="toggles.autoFertilizerUse" @change="saveToggles" />
           </div>
+          <div class="toggle-row">
+            <span class="toggle-label">调试模式 <el-tooltip content="开启后将记录详细的网络请求日志" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
+            <el-switch v-model="toggles.debugMode" @change="saveToggles" />
+          </div>
         </div>
 
         <div class="toggle-group">

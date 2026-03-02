@@ -50,7 +50,8 @@ const TAG_ICONS = {
     '解锁': '🔓', '升级': '⬆️',
     '商店': '🛒', '购买': '💰',
     '好友': '👥', '申请': '👋',
-    '任务': '📝', '仓库': '📦', 'API': '🌐', '配置': '🔧',
+    '任务': '📝', '仓库': '📦', 'API': '🌐', '配置': '🔧', 
+    'DEBUG': '🐞',
 };
 function getTagIcon(tag) { return TAG_ICONS[tag] || '📌'; }
 
@@ -67,6 +68,7 @@ class BotInstance extends EventEmitter {
      * @param {number} opts.friendTimeRange - 好友巡查间隔 ms
      * @param {number} opts.farmOperationMaxDelay - 好友巡查间隔 ms
      * @param {number} opts.farmOperationMinDelay - 好友巡查间隔 ms
+     * @param {number} opts.forceLowestLevelCrop - 好友巡查间隔 ms
      */
     constructor(userId, opts = {}) {
         super();
@@ -74,8 +76,10 @@ class BotInstance extends EventEmitter {
         this.platform = opts.platform || 'qq';
         this.farmInterval = opts.farmInterval || CONFIG.farmCheckInterval;
         this.friendInterval = opts.friendInterval || CONFIG.friendCheckInterval;
+        this.forceLowestLevelCrop = opts.forceLowestLevelCrop || CONFIG.forceLowestLevelCrop;
         this.preferredSeedId = opts.preferredSeedId || 0; // 0 = 自动选择
-        this.friendTimeRange = opts.friendTimeRange;
+        // friendTimeRange 默认为早上九点到晚上十点（单位小时，24小时制
+        this.friendTimeRange = opts.friendTimeRange || ['09:00', '23:00'];
         this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
         this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 5;
 
@@ -170,6 +174,7 @@ class BotInstance extends EventEmitter {
             autoIllustrated: true,     // 图鉴奖励自动领取
             autoFertilizerBuy: false,  // 点券购买化肥（消耗点券，默认关）
             autoFertilizerUse: false,   // 使用化肥礼包
+            debugMode: false,   // 增加debug日志
         };
 
         // ---------- 今日统计 ----------
@@ -281,6 +286,10 @@ class BotInstance extends EventEmitter {
                 return;
             }
             const seq = this.clientSeq;
+            // 添加 debug 日志
+            if (this.featureToggles.debugMode) {
+                this.log('DEBUG', `sendMsgAsync 发送请求: ${serviceName}.${methodName} (seq=${seq})`);
+            }
             const timer = setTimeout(() => {
                 this.pendingCallbacks.delete(seq);
                 reject(new Error(`请求超时: ${methodName} (seq=${seq})`));
@@ -722,6 +731,9 @@ class BotInstance extends EventEmitter {
     async findBestSeed(landsCount) {
         const SEED_SHOP_ID = 2;
         const shopReply = await this.getShopInfo(SEED_SHOP_ID);
+        if (this.featureToggles.debugMode) {
+            this.log('DEBUG', `findBestSeed ${JSON.stringify(shopReply)}`);
+        }
         if (!shopReply.goods_list || shopReply.goods_list.length === 0) return null;
 
         const state = this.userState;
@@ -758,7 +770,7 @@ class BotInstance extends EventEmitter {
             }
         }
 
-        if (CONFIG.forceLowestLevelCrop) {
+        if (this.forceLowestLevelCrop) {
             available.sort((a, b) => a.requiredLevel - b.requiredLevel || a.price - b.price);
             return available[0];
         }
@@ -830,7 +842,7 @@ class BotInstance extends EventEmitter {
             if (planted > 0) plantedLands = landsToPlant.slice(0, planted);
         } catch (e) { this.logWarn('种植', e.message); }
 
-        if (plantedLands.length > 0) {
+        if (this.featureToggles.autoFertilize && plantedLands.length > 0) {
             const fertilized = await this.fertilize(plantedLands);
             if (fertilized > 0) this.log('施肥', `已为 ${fertilized}/${plantedLands.length} 块地施肥`);
         }
@@ -934,6 +946,9 @@ class BotInstance extends EventEmitter {
             if (!landsReply.lands || landsReply.lands.length === 0) { this.log('农场', '没有土地数据'); return; }
 
             const lands = landsReply.lands;
+            if (this.featureToggles.debugMode) {
+                this.log('DEBUG', `landsReply ${JSON.stringify(landsReply)}`);
+            }
             const status = this.analyzeLands(lands);
             const unlockedCount = lands.filter(l => l && l.unlocked).length;
 
