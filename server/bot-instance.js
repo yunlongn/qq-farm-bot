@@ -1090,13 +1090,19 @@ class BotInstance extends EventEmitter {
                     g.count++;
                     // 取最短剩余时间
                     if (d.timeLeft && (!g.timeLeft || d.timeLeft < g.timeLeft)) g.timeLeft = d.timeLeft;
-                    const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
-                    if (d.leftSecs && d.leftSecs < randomSeconds) {
-                        // 最后一小时进行施肥一次
-                        let plantedLands = [d.landId]
-                        const fertilized = await this.fertilize(plantedLands);
-                        if (fertilized > 0) this.log('施肥', `最后施肥 ${randomSeconds}s ${fertilized}/${plantedLands.length} 块地施肥`);
+
+                    try {
+                        const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
+                        if (d.leftSecs && d.leftSecs < randomSeconds) {
+                            // 最后一小时进行施肥一次
+                            let plantedLands = [d.landId]
+                            const fertilized = await this.fertilize(plantedLands);
+                            if (fertilized > 0) this.log('施肥', `最后施肥 ${randomSeconds}s ${fertilized}/${plantedLands.length} 块地施肥`);
+                        }
+                    } catch (e) {
+                        this.logWarn('施肥', `土地#${d.landId} 施肥失败: ${e.message}`);
                     }
+                 
                 }
                 const growParts = [];
                 for (const [name, g] of groups) {
