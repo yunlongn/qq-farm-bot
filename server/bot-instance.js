@@ -64,11 +64,11 @@ class BotInstance extends EventEmitter {
      * @param {string} opts.platform - 'qq' | 'wx'
      * @param {number} opts.farmInterval - 农场巡查间隔 ms
      * @param {number} opts.friendInterval - 好友巡查间隔 ms
-     * @param {number} opts.preferredSeedId - 好友巡查间隔 ms
-     * @param {number} opts.friendTimeRange - 好友巡查间隔 ms
-     * @param {number} opts.farmOperationMaxDelay - 好友巡查间隔 ms
-     * @param {number} opts.farmOperationMinDelay - 好友巡查间隔 ms
-     * @param {number} opts.forceLowestLevelCrop - 好友巡查间隔 ms
+     * @param {number} opts.preferredSeedId - 自动选择的农作物
+     * @param {number} opts.friendTimeRange - 好友巡逻时间段
+     * @param {number} opts.farmOperationMaxDelay - 随机操作延迟上限 ms
+     * @param {number} opts.farmOperationMinDelay - 随机操作延迟下限 ms
+     * @param {number} opts.forceLowestLevelCrop - 强制种植最低等级作物（跳过效率分析，通常是白萝卜）
      */
     constructor(userId, opts = {}) {
         super();
@@ -77,7 +77,7 @@ class BotInstance extends EventEmitter {
         this.farmInterval = opts.farmInterval || CONFIG.farmCheckInterval;
         this.friendInterval = opts.friendInterval || CONFIG.friendCheckInterval;
         this.forceLowestLevelCrop = opts.forceLowestLevelCrop || CONFIG.forceLowestLevelCrop;
-        this.preferredSeedId = opts.preferredSeedId || 0; // 0 = 自动选择
+        this.preferredSeedId = opts.preferredSeedId || 20002; // 0 = 自动选择
         // friendTimeRange 默认为早上九点到晚上十点（单位小时，24小时制
         this.friendTimeRange = opts.friendTimeRange || ['09:00', '23:00'];
         this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
@@ -145,7 +145,7 @@ class BotInstance extends EventEmitter {
             // ========== 农场基础功能 ==========
             autoHarvest: true,         // 自动收获成熟作物
             autoPlant: true,           // 自动种植空地
-            autoFertilize: false,       // 自动施肥
+            autoFertilize: true,       // 自动施肥
             autoWeed: true,            // 自动除草
             autoPest: true,            // 自动除虫
             autoWater: true,           // 自动浇水
@@ -629,6 +629,8 @@ class BotInstance extends EventEmitter {
 
     async fertilize(landIds, fertilizerId = NORMAL_FERTILIZER_ID) {
         let successCount = 0;
+        // 打乱 landIds 的顺序
+        landIds = landIds.sort(() => Math.random() - 0.5);
         for (const landId of landIds) {
             try {
                 const body = types.FertilizeRequest.encode(types.FertilizeRequest.create({
@@ -638,7 +640,7 @@ class BotInstance extends EventEmitter {
                 await this.sendMsgAsync('gamepb.plantpb.PlantService', 'Fertilize', body);
                 successCount++;
             } catch (e) { break; }
-            if (landIds.length > 1) await sleep(50);
+            if (landIds.length > 1) await sleep(200);
         }
         return successCount;
     }
@@ -714,6 +716,8 @@ class BotInstance extends EventEmitter {
 
     async plantSeeds(seedId, landIds) {
         let successCount = 0;
+        // 打乱 landIds 的顺序
+        landIds = landIds.sort(() => Math.random() - 0.5);
         for (const landId of landIds) {
             try {
                 const body = this.encodePlantRequest(seedId, [landId]);
@@ -723,7 +727,7 @@ class BotInstance extends EventEmitter {
             } catch (e) {
                 this.logWarn('种植', `土地#${landId} 失败: ${e.message}`);
             }
-            if (landIds.length > 1) await sleep(50);
+            if (landIds.length > 1) await sleep(200);
         }
         return successCount;
     }
@@ -745,13 +749,18 @@ class BotInstance extends EventEmitter {
             for (const cond of (goods.conds || [])) {
                 if (toNum(cond.type) === 1) {
                     requiredLevel = toNum(cond.param);
-                    if (state.level < requiredLevel) { meetsConditions = false; break; }
+                    if (state.level < requiredLevel) {
+                        meetsConditions = false;
+                        break;
+                    }
                 }
             }
             if (!meetsConditions) continue;
-            const limitCount = toNum(goods.limit_count);
-            const boughtNum = toNum(goods.bought_num);
-            if (limitCount > 0 && boughtNum >= limitCount) continue;
+            if (goods.limit_count && goods.bought_num) {
+                const limitCount = toNum(goods.limit_count);
+                const boughtNum = toNum(goods.bought_num);
+                if (limitCount > 0 && boughtNum >= limitCount) continue;
+            }
             available.push({
                 goods, goodsId: toNum(goods.id), seedId: toNum(goods.item_id),
                 price: toNum(goods.price), requiredLevel,
@@ -807,6 +816,7 @@ class BotInstance extends EventEmitter {
                 this.logWarn('铲除', `失败: ${e.message}`);
                 landsToPlant.push(...deadLandIds);
             }
+            await sleep(400);
         }
         if (landsToPlant.length === 0) return;
 
@@ -842,10 +852,14 @@ class BotInstance extends EventEmitter {
             if (planted > 0) plantedLands = landsToPlant.slice(0, planted);
         } catch (e) { this.logWarn('种植', e.message); }
 
-        if (this.featureToggles.autoFertilize && plantedLands.length > 0) {
-            const fertilized = await this.fertilize(plantedLands);
-            if (fertilized > 0) this.log('施肥', `已为 ${fertilized}/${plantedLands.length} 块地施肥`);
-        }
+        (async () => {
+            // 隔两秒一件施肥
+            await sleep(2 * 1000);
+            if (this.featureToggles.autoFertilize && plantedLands.length > 0) {
+                const fertilized = await this.fertilize(plantedLands);
+                if (fertilized > 0) this.log('施肥', `已为 ${fertilized}/${plantedLands.length} 块地施肥`);
+            }
+        })().catch(e => this.logWarn('施肥', e.message))
     }
 
     // ================================================================
