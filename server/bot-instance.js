@@ -958,6 +958,9 @@ class BotInstance extends EventEmitter {
     async checkFarm() {
         if (this.isCheckingFarm || !this.userState.gid) return;
         this.isCheckingFarm = true;
+        // 需要施肥的土地
+        const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
+        let plantedLands = []
         try {
             const landsReply = await this.getAllLands();
             if (!landsReply.lands || landsReply.lands.length === 0) { this.log('农场', '没有土地数据'); return; }
@@ -1092,16 +1095,9 @@ class BotInstance extends EventEmitter {
                     if (d.timeLeft && (!g.timeLeft || d.timeLeft < g.timeLeft)) g.timeLeft = d.timeLeft;
 
                     if (this.featureToggles.autoFertilize && this.featureToggles.lastTimeFertilize) {
-                        try {
-                            const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
-                            if (d.leftSecs && d.leftSecs < randomSeconds) {
-                                // 最后一小时进行施肥一次
-                                let plantedLands = [d.landId]
-                                const fertilized = await this.fertilize(plantedLands);
-                                if (fertilized > 0) this.log('施肥', `最后施肥 ${randomSeconds}s ${fertilized}/${plantedLands.length} 块地施肥`);
-                            }
-                        } catch (e) {
-                            this.logWarn('施肥', `土地#${d.landId} 施肥失败: ${e.message}`);
+                        if (d.leftSecs && d.leftSecs < randomSeconds) {
+                            // 最后一小时进行施肥一次
+                            plantedLands.push(d.landId)
                         }
                     }
                  
@@ -1119,6 +1115,15 @@ class BotInstance extends EventEmitter {
             this.logWarn('巡田', `检查失败: ${err.message}`);
         } finally {
             this.isCheckingFarm = false;
+            try {
+                const fertilized = await this.fertilize(plantedLands);
+                if (fertilized > 0) {
+                    this.log('施肥', `最后施肥 ${randomSeconds}s ${fertilized}/${plantedLands.length} 块地施肥`)
+                    await this.checkFarm()
+                }
+            } catch (e) {
+                this.logWarn('施肥', `土地#${d.landId} 施肥失败: ${e.message}`);
+            }
         }
     }
 
