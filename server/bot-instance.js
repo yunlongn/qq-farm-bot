@@ -146,6 +146,7 @@ class BotInstance extends EventEmitter {
             autoHarvest: true,         // 自动收获成熟作物
             autoPlant: true,           // 自动种植空地
             autoFertilize: true,       // 自动施肥
+            lastTimeFertilize: true,       // 最后一小时施肥
             autoWeed: true,            // 自动除草
             autoPest: true,            // 自动除虫
             autoWater: true,           // 自动浇水
@@ -852,14 +853,14 @@ class BotInstance extends EventEmitter {
             if (planted > 0) plantedLands = landsToPlant.slice(0, planted);
         } catch (e) { this.logWarn('种植', e.message); }
 
-        (async () => {
-            // 隔两秒一件施肥
-            await sleep(2 * 1000);
-            if (this.featureToggles.autoFertilize && plantedLands.length > 0) {
+        if (this.featureToggles.autoFertilize && plantedLands.length > 0 && !this.featureToggles.lastTimeFertilize) {
+            (async () => {
+                // 隔两秒一件施肥
+                await sleep(2 * 1000);
                 const fertilized = await this.fertilize(plantedLands);
                 if (fertilized > 0) this.log('施肥', `已为 ${fertilized}/${plantedLands.length} 块地施肥`);
-            }
-        })().catch(e => this.logWarn('施肥', e.message))
+            })().catch(e => this.logWarn('施肥', e.message))
+        }
     }
 
     // ================================================================
@@ -930,10 +931,12 @@ class BotInstance extends EventEmitter {
             // 计算距成熟剩余时间
             const maturePhase = plant.phases.find(p => p.phase === PlantPhase.MATURE);
             let timeLeft = '';
+            let secs0 = 0;
             if (maturePhase) {
                 const matureBegin = this.toTimeSec(maturePhase.begin_time);
                 if (matureBegin > nowSec) {
                     const secs = matureBegin - nowSec;
+                    secs0 = secs;
                     const h = Math.floor(secs / 3600);
                     const m = Math.floor((secs % 3600) / 60);
                     timeLeft = h > 0 ? `${h}h${m}m` : `${m}m`;
@@ -942,7 +945,7 @@ class BotInstance extends EventEmitter {
                 }
             }
             const phaseName = PHASE_NAMES[phaseVal] || '生长中';
-            result.growingDetails.push({ landId: id, name: plantName, phase: phaseName, timeLeft });
+            result.growingDetails.push({ landId: id, name: plantName, phase: phaseName, timeLeft, leftSecs: secs0 });
             result.growing.push(id);
         }
         return result;
@@ -1087,6 +1090,13 @@ class BotInstance extends EventEmitter {
                     g.count++;
                     // 取最短剩余时间
                     if (d.timeLeft && (!g.timeLeft || d.timeLeft < g.timeLeft)) g.timeLeft = d.timeLeft;
+                    const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
+                    if (d.leftSecs && d.leftSecs < randomSeconds) {
+                        // 最后一小时进行施肥一次
+                        let plantedLands = [d.landId]
+                        const fertilized = await this.fertilize(plantedLands);
+                        if (fertilized > 0) this.log('施肥', `最后施肥 ${randomSeconds}s ${fertilized}/${plantedLands.length} 块地施肥`);
+                    }
                 }
                 const growParts = [];
                 for (const [name, g] of groups) {
