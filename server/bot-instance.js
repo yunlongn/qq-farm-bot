@@ -374,7 +374,8 @@ class BotInstance extends EventEmitter {
                     const hostGid = toNum(notify.host_gid);
                     const lands = notify.lands || [];
                     if (lands.length > 0 && (hostGid === this.userState.gid || hostGid === 0)) {
-                        this.emit('landsChanged', lands);
+                        // 不要被偷了了就巡田
+                        // this.emit('landsChanged', lands);
                     }
                 } catch (e) { }
                 return;
