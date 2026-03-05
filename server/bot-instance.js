@@ -988,7 +988,7 @@ class BotInstance extends EventEmitter {
                 batchOps.push(
                     (async () => {
                         const delay = this._getRandomFarmOperationDelay();
-                        if (delay > 0) await sleep(delay * 1000);
+                        if (delay > 0) await sleep(delay * 100);
                         await this.weedOut(status.needWeed);
                         actions.push(`🌿除草×${status.needWeed.length}`);
                     })().catch(e => this.logWarn('除草', e.message))
@@ -998,7 +998,7 @@ class BotInstance extends EventEmitter {
                 batchOps.push(
                     (async () => {
                         const delay = this._getRandomFarmOperationDelay();
-                        if (delay > 0) await sleep(delay * 1000);
+                        if (delay > 0) await sleep(delay * 100);
                         await this.insecticide(status.needBug);
                         actions.push(`🐛除虫×${status.needBug.length}`);
                     })().catch(e => this.logWarn('除虫', e.message))
@@ -1008,7 +1008,7 @@ class BotInstance extends EventEmitter {
                 batchOps.push(
                     (async () => {
                         const delay = this._getRandomFarmOperationDelay();
-                        if (delay > 0) await sleep(delay * 1000);
+                        if (delay > 0) await sleep(delay * 100);
                         await this.waterLand(status.needWater);
                         actions.push(`💦浇水×${status.needWater.length}`);
                     })().catch(e => this.logWarn('浇水', e.message))
@@ -1091,14 +1091,12 @@ class BotInstance extends EventEmitter {
                     g.count++;
                     // 取最短剩余时间
                     if (d.timeLeft && (!g.timeLeft || d.timeLeft < g.timeLeft)) g.timeLeft = d.timeLeft;
-
                     if (this.featureToggles.autoFertilize && this.featureToggles.lastTimeFertilize) {
+                        // 获取最后的剩余秒数，判断是否需要施肥
                         if (d.leftSecs && d.leftSecs < randomSeconds) {
-                            // 最后一小时进行施肥一次
                             plantedLands.push(d.landId)
                         }
                     }
-                 
                 }
                 const growParts = [];
                 for (const [name, g] of groups) {
@@ -1323,8 +1321,6 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needWeed) {
                     try { await this.helpWeed(gid, [landId]); ok++; } catch (e) { }
-                    const delay = this._getRandomFarmOperationDelay();
-                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`🌿除草×${ok}`); totalActions.weed += ok; this.dailyStats.helpWeed += ok; }
             } else {
@@ -1338,8 +1334,6 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needBug) {
                     try { await this.helpInsecticide(gid, [landId]); ok++; } catch (e) { }
-                    const delay = this._getRandomFarmOperationDelay();
-                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`🐛除虫×${ok}`); totalActions.bug += ok; this.dailyStats.helpPest += ok; }
             } else {
@@ -1353,8 +1347,6 @@ class BotInstance extends EventEmitter {
                 let ok = 0;
                 for (const landId of status.needWater) {
                     try { await this.helpWater(gid, [landId]); ok++; } catch (e) { }
-                    const delay = this._getRandomFarmOperationDelay();
-                    if (delay > 0) await sleep(delay * 1000);
                 }
                 if (ok > 0) { actions.push(`💦浇水×${ok}`); totalActions.water += ok; this.dailyStats.helpWater += ok; }
             } else {
@@ -1371,7 +1363,6 @@ class BotInstance extends EventEmitter {
                     ok++;
                     if (status.stealableInfo[i]) stolenPlants.push(status.stealableInfo[i].name);
                 } catch (e) { }
-                await sleep(100);
             }
             if (ok > 0) {
                 const plantNames = [...new Set(stolenPlants)].join('/');
