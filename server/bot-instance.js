@@ -960,7 +960,7 @@ class BotInstance extends EventEmitter {
         if (this.isCheckingFarm || !this.userState.gid) return;
         this.isCheckingFarm = true;
         // 需要施肥的土地
-        const randomSeconds = Math.floor(Math.random() * (3600 - 1800 + 1)) + 1800;
+        const randomSeconds = Math.floor(Math.random() * (900 + 1)) + 900;
         let plantedLands = []
         try {
             const landsReply = await this.getAllLands();
