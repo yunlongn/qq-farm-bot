@@ -138,7 +138,7 @@ class BotInstance extends EventEmitter {
 
         // ---------- 日志缓冲 ----------
         this._logs = [];      // 最近 N 条日志
-        this.MAX_LOGS = 500;
+        this.MAX_LOGS = 1500;
 
         // ---------- 功能开关 (前端可控制) ----------
         this.featureToggles = {
@@ -289,7 +289,7 @@ class BotInstance extends EventEmitter {
             const seq = this.clientSeq;
             // 添加 debug 日志
             if (this.featureToggles.debugMode) {
-                this.log('DEBUG', `sendMsgAsync 发送请求: ${serviceName}.${methodName} (seq=${seq})`);
+                this.logWarn('DEBUG', `sendMsgAsync 发送请求: ${serviceName}.${methodName} (seq=${seq}) body=${bodyBytes}`);
             }
             const timer = setTimeout(() => {
                 this.pendingCallbacks.delete(seq);
@@ -353,6 +353,9 @@ class BotInstance extends EventEmitter {
             const type = event.message_type || '';
             const eventBody = event.body;
 
+            if (this.featureToggles.debugMode) {
+                this.logWarn('WS', `handleNotify event ${JSON.stringify(event)} msg ${JSON.stringify(msg)} `);
+            }
             if (type.includes('Kickout')) {
                 this.log('推送', `被踢下线! ${type}`);
                 try {
@@ -736,9 +739,6 @@ class BotInstance extends EventEmitter {
     async findBestSeed(landsCount) {
         const SEED_SHOP_ID = 2;
         const shopReply = await this.getShopInfo(SEED_SHOP_ID);
-        if (this.featureToggles.debugMode) {
-            this.log('DEBUG', `findBestSeed ${JSON.stringify(shopReply)}`);
-        }
         if (!shopReply.goods_list || shopReply.goods_list.length === 0) return null;
 
         const state = this.userState;
@@ -966,9 +966,6 @@ class BotInstance extends EventEmitter {
             if (!landsReply.lands || landsReply.lands.length === 0) { this.log('农场', '没有土地数据'); return; }
 
             const lands = landsReply.lands;
-            if (this.featureToggles.debugMode) {
-                this.log('DEBUG', `landsReply ${JSON.stringify(landsReply)}`);
-            }
             const status = this.analyzeLands(lands);
             const unlockedCount = lands.filter(l => l && l.unlocked).length;
 
@@ -1122,7 +1119,7 @@ class BotInstance extends EventEmitter {
                     await this.checkFarm()
                 }
             } catch (e) {
-                this.logWarn('施肥', `土地#${d.landId} 施肥失败: ${e.message}`);
+                this.logWarn('施肥', `土地#${plantedLands} 施肥失败: ${e.message}`);
             }
         }
     }
@@ -2375,6 +2372,70 @@ class BotInstance extends EventEmitter {
         } catch (err) {
             this.logWarn('API', `获取土地状态失败: ${err.message}`);
             return null;
+        }
+    }
+
+    async harvestAll() {
+        try {
+            const landsReply = await this.getAllLands();
+            if (!landsReply.lands) throw new Error('获取土地数据失败');
+            const analysis = this.analyzeLands(landsReply.lands);
+            
+            if (analysis.harvestable.length === 0) {
+                this.log('收获', '没有可收获的作物');
+                return;
+            }
+            
+            const body = types.HarvestRequest.create({
+                land_ids: analysis.harvestable.map(id => toLong(id)),
+            });
+            const { body: replyBody } = await this.sendMsgAsync('gamepb.plantpb.PlantService', 'Harvest', types.HarvestRequest.encode(body).finish());
+            const harvestReply = types.HarvestResponse.decode(replyBody);
+            
+            if (harvestReply.harvested) {
+                this.log('收获', `成功收获 ${harvestReply.harvested.length} 块土地`);
+            }
+        } catch (err) {
+            this.log('一键收获', err.message);
+            throw err;
+        }
+    }
+
+    async fertilizeAll() {
+        try {
+            const landsReply = await this.getAllLands();
+            if (!landsReply.lands) throw new Error('获取土地数据失败');
+            const analysis = this.analyzeLands(landsReply.lands);
+            
+            if (analysis.growing.length === 0) {
+                this.log('施肥', '没有可施肥的作物');
+                return;
+            }
+            
+            for (const landId of analysis.growing) {
+                const body = types.FertilizeRequest.create({
+                    land_ids: [toLong(landId)],
+                    fertilizer_id: toLong(NORMAL_FERTILIZER_ID),
+                });
+                try {
+                    await this.sendMsgAsync('gamepb.plantpb.PlantService', 'Fertilize', types.FertilizeRequest.encode(body).finish());
+                } catch (e) {
+                    this.log('施肥', `土地 ${landId} 施肥失败: ${e.message}`);
+                }
+                if (analysis.growing.length > 1) await sleep(200);
+            }
+            
+            this.log('施肥', `成功给 ${analysis.growing.length} 块土地施肥`);
+        } catch (err) {
+            this.log('一键施肥', err.message);
+        }
+    }
+
+    async inspectAll() {
+        try {
+            await this.checkFarm();
+        } catch (err) {
+            this.log('一键巡田', err.message);
         }
     }
 

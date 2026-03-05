@@ -64,6 +64,18 @@ export function getAccountLands(uin) {
   return api.get(`/accounts/${uin}/lands`)
 }
 
+export function harvestAll(uin) {
+  return api.post(`/accounts/${uin}/harvest-all`)
+}
+
+export function fertilizeAll(uin) {
+  return api.post(`/accounts/${uin}/fertilize-all`)
+}
+
+export function inspectAll(uin) {
+  return api.post(`/accounts/${uin}/inspect-all`)
+}
+
 export function getAccountLogs(uin, limit = 500) {
   return api.get(`/accounts/${uin}/logs`, { params: { limit } })
 }

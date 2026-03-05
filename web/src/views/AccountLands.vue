@@ -30,9 +30,12 @@
       </div>
     </div>
 
-    <!-- 刷新按钮 -->
+    <!-- 操作按钮 -->
     <div class="toolbar" v-if="landData">
       <el-button size="small" :icon="Refresh" @click="fetchLands" :loading="loading">刷新</el-button>
+      <el-button size="small" type="success" @click="handleHarvestAll" :loading="operationLoading">一键收获</el-button>
+      <el-button size="small" type="primary" @click="handleFertilizeAll" :loading="operationLoading">一键施肥</el-button>
+      <el-button size="small" type="info" @click="handleInspectAll" :loading="operationLoading">一键巡田</el-button>
     </div>
 
     <!-- 土地卡片网格 -->
@@ -91,11 +94,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { getAccountLands } from '../api/index.js'
+import { ElMessage } from 'element-plus'
+import { getAccountLands, harvestAll, fertilizeAll, inspectAll } from '../api/index.js'
 
 const props = defineProps({ uin: String })
 
 const loading = ref(false)
+const operationLoading = ref(false)
 const landData = ref(null)
 
 async function fetchLands() {
@@ -136,6 +141,45 @@ function getSoilName(type) {
 function getSoilColor(type) {
   const map = { 1: 'info', 2: 'danger', 3: '', 4: 'warning' }
   return map[type] || 'info'
+}
+
+async function handleHarvestAll() {
+  operationLoading.value = true
+  try {
+    await harvestAll(props.uin)
+    ElMessage.success('一键收获成功')
+    await fetchLands()
+  } catch (e) {
+    ElMessage.error('一键收获失败: ' + e.message)
+  } finally {
+    operationLoading.value = false
+  }
+}
+
+async function handleFertilizeAll() {
+  operationLoading.value = true
+  try {
+    await fertilizeAll(props.uin)
+    ElMessage.success('一键施肥成功')
+    await fetchLands()
+  } catch (e) {
+    ElMessage.error('一键施肥失败: ' + e.message)
+  } finally {
+    operationLoading.value = false
+  }
+}
+
+async function handleInspectAll() {
+  operationLoading.value = true
+  try {
+    await inspectAll(props.uin)
+    ElMessage.success('一键巡田成功')
+    await fetchLands()
+  } catch (e) {
+    ElMessage.error('一键巡田失败: ' + e.message)
+  } finally {
+    operationLoading.value = false
+  }
 }
 
 onMounted(fetchLands)

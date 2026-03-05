@@ -251,6 +251,48 @@ router.get('/accounts/:uin/lands', canAccessUin, async (req, res) => {
     }
 });
 
+/** POST /api/accounts/:uin/harvest-all - 一键收获所有可收获的作物 */
+router.post('/accounts/:uin/harvest-all', canAccessUin, async (req, res) => {
+    try {
+        const bot = botManager.bots.get(req.params.uin);
+        if (!bot || bot.status !== 'running') {
+            return res.status(400).json({ ok: false, error: 'Bot 未运行' });
+        }
+        await bot.harvestAll();
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+/** POST /api/accounts/:uin/fertilize-all - 一键给所有生长中的作物施肥 */
+router.post('/accounts/:uin/fertilize-all', canAccessUin, async (req, res) => {
+    try {
+        const bot = botManager.bots.get(req.params.uin);
+        if (!bot || bot.status !== 'running') {
+            return res.status(400).json({ ok: false, error: 'Bot 未运行' });
+        }
+        await bot.fertilizeAll();
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+/** POST /api/accounts/:uin/inspect-all - 一键巡田，处理所有土地的问题 */
+router.post('/accounts/:uin/inspect-all', canAccessUin, async (req, res) => {
+    try {
+        const bot = botManager.bots.get(req.params.uin);
+        if (!bot || bot.status !== 'running') {
+            return res.status(400).json({ ok: false, error: 'Bot 未运行' });
+        }
+        await bot.inspectAll();
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
 /** GET /api/accounts/:uin/snapshot - 获取详细快照 (含功能开关、统计) */
 router.get('/accounts/:uin/snapshot', canAccessUin, (req, res) => {
     try {
