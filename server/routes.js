@@ -293,6 +293,20 @@ router.post('/accounts/:uin/inspect-all', canAccessUin, async (req, res) => {
     }
 });
 
+/** POST /api/accounts/:uin/steal-all - 一键偷菜，偷取所有好友的可偷作物 */
+router.post('/accounts/:uin/steal-all', canAccessUin, async (req, res) => {
+    try {
+        const bot = botManager.bots.get(req.params.uin);
+        if (!bot || bot.status !== 'running') {
+            return res.status(400).json({ ok: false, error: 'Bot 未运行' });
+        }
+        await bot.stealAll();
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
 /** GET /api/accounts/:uin/snapshot - 获取详细快照 (含功能开关、统计) */
 router.get('/accounts/:uin/snapshot', canAccessUin, (req, res) => {
     try {

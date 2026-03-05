@@ -76,6 +76,10 @@ export function inspectAll(uin) {
   return api.post(`/accounts/${uin}/inspect-all`)
 }
 
+export function stealAll(uin) {
+  return api.post(`/accounts/${uin}/steal-all`)
+}
+
 export function getAccountLogs(uin, limit = 500) {
   return api.get(`/accounts/${uin}/logs`, { params: { limit } })
 }

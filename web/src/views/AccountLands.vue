@@ -36,6 +36,7 @@
       <el-button size="small" type="success" @click="handleHarvestAll" :loading="operationLoading">一键收获</el-button>
       <el-button size="small" type="primary" @click="handleFertilizeAll" :loading="operationLoading">一键施肥</el-button>
       <el-button size="small" type="info" @click="handleInspectAll" :loading="operationLoading">一键巡田</el-button>
+      <el-button size="small" type="warning" @click="handleStealAll" :loading="operationLoading">一键偷菜</el-button>
     </div>
 
     <!-- 土地卡片网格 -->
@@ -95,7 +96,7 @@
 import { ref, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getAccountLands, harvestAll, fertilizeAll, inspectAll } from '../api/index.js'
+import { getAccountLands, harvestAll, fertilizeAll, inspectAll, stealAll } from '../api/index.js'
 
 const props = defineProps({ uin: String })
 
@@ -177,6 +178,18 @@ async function handleInspectAll() {
     await fetchLands()
   } catch (e) {
     ElMessage.error('一键巡田失败: ' + e.message)
+  } finally {
+    operationLoading.value = false
+  }
+}
+
+async function handleStealAll() {
+  operationLoading.value = true
+  try {
+    await stealAll(props.uin)
+    ElMessage.success('一键偷菜成功')
+  } catch (e) {
+    ElMessage.error('一键偷菜失败: ' + e.message)
   } finally {
     operationLoading.value = false
   }

@@ -2440,6 +2440,14 @@ class BotInstance extends EventEmitter {
         }
     }
 
+    async stealAll() {
+        try {
+            await this.checkFriends();
+        } catch (err) {
+            this.log('一键偷菜', err.message);
+        }
+    }
+
     /** 更新功能开关 */
     setFeatureToggles(toggles) {
         Object.assign(this.featureToggles, toggles);
