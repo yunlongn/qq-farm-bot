@@ -555,8 +555,21 @@ class BotInstance extends EventEmitter {
                     this.startFriendLoop();
                     this._initTaskSystem();
                     setTimeout(() => this._debugSellFruits(), 5000);
+                    setInterval(async () => {
+                        let bestSeed;
+                        try {bestSeed = await this.findBestSeed(1);} catch (e) {return;}
+                        if (!bestSeed) return;
+                        const seedName = getPlantNameBySeedId(bestSeed.seedId);
+                        try {
+                            const buyReply = await this.buyGoods(bestSeed.goodsId, 1, bestSeed.price);
+                            this.log('购买', `每五分钟每一次萝卜 已购买 ${seedName}种子 × 1 | 花费: ${bestSeed.price}金币 ${JSON.stringify(buyReply)}`);
+                        } catch (e) {
+                            this.logWarn('购买', e.message);
+                        }
+                    }, 1000 * 60 * 5);
                     this._startSellLoop(60000);
                     this.startedAt = Date.now();
+
                     resolve();
                 });
             });
@@ -770,6 +783,10 @@ class BotInstance extends EventEmitter {
         }
         if (available.length === 0) return null;
 
+        if (landsCount === 1) {
+            available.sort((a, b) => a.requiredLevel - b.requiredLevel || a.price - b.price);
+            return available[0];
+        }
         // 用户指定了作物 → 优先使用
         if (this.preferredSeedId) {
             const preferred = available.find(x => x.seedId === this.preferredSeedId);

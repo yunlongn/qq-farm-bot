@@ -54,6 +54,10 @@
             <el-switch v-model="toggles.autoFertilize" @change="saveToggles" />
           </div>
           <div class="toggle-row">
+            <span class="toggle-label">最后一小时施肥 <el-tooltip content="仅在作物成熟前最后1小时内施肥" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
+            <el-switch v-model="toggles.lastTimeFertilize" @change="saveToggles" />
+          </div>
+          <div class="toggle-row">
             <span class="toggle-label">自动除草 <el-tooltip content="自动清除杂草" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
             <el-switch v-model="toggles.autoWeed" @change="saveToggles" />
           </div>
