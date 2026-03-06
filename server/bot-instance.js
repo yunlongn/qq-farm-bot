@@ -573,7 +573,7 @@ class BotInstance extends EventEmitter {
                                 this.logWarn('购买', e.message);
                             }
                         }
-                    }, 1000 * 60 * 5);
+                    }, 1000 * 60 * 3);
                     this._startSellLoop(60000);
                     this.startedAt = Date.now();
 
