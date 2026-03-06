@@ -308,7 +308,7 @@ class BotManager extends EventEmitter {
     /**
      * 修改账号配置
      */
-    updateAccountConfig(uin, { farmInterval, friendInterval, autoStart, platform, preferredSeedId, friendTimeRange, farmOperationMinDelay, farmOperationMaxDelay }) {
+    updateAccountConfig(uin, { farmInterval, friendInterval, autoStart, platform, preferredSeedId, friendTimeRange, farmOperationMinDelay, farmOperationMaxDelay, autoBuySeed, autoBuySeedInterval }) {
         const updates = {};
         if (farmInterval !== undefined) updates.farm_interval = farmInterval;
         if (friendInterval !== undefined) updates.friend_interval = friendInterval;
@@ -318,6 +318,8 @@ class BotManager extends EventEmitter {
         if (friendTimeRange !== undefined) updates.friend_time_range = friendTimeRange;
         if (farmOperationMinDelay !== undefined) updates.farm_operation_min_delay = farmOperationMinDelay;
         if (farmOperationMaxDelay !== undefined) updates.farm_operation_max_delay = farmOperationMaxDelay;
+        if (autoBuySeed !== undefined) updates.auto_buy_seed = autoBuySeed ? 1 : 0;
+        if (autoBuySeedInterval !== undefined) updates.auto_buy_seed_interval = autoBuySeedInterval;
         db.updateUser(uin, updates);
 
         // 如果 Bot 正在运行，更新运行时配置
@@ -329,6 +331,7 @@ class BotManager extends EventEmitter {
             if (friendTimeRange !== undefined) bot.friendTimeRange = friendTimeRange;
             if (farmOperationMinDelay !== undefined) bot.farmOperationMinDelay = farmOperationMinDelay;
             if (farmOperationMaxDelay !== undefined) bot.farmOperationMaxDelay = farmOperationMaxDelay;
+            if (autoBuySeed !== undefined) bot.autoBuySeed = autoBuySeed;
         }
     }
 
@@ -349,6 +352,8 @@ class BotManager extends EventEmitter {
                         farmInterval: user.farm_interval,
                         friendInterval: user.friend_interval,
                         preferredSeedId: user.preferred_seed_id || 0,
+                        autoBuySeed: user.auto_buy_seed || 0,
+                        autoBuySeedInterval: user.auto_buy_seed_interval || 300000,
                     });
                     console.log(`[BotManager] 已启动: ${user.uin} (${user.nickname || '未知'})`);
                 }

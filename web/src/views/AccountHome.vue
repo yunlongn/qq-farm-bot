@@ -54,7 +54,7 @@
             <el-switch v-model="toggles.autoFertilize" @change="saveToggles" />
           </div>
           <div class="toggle-row">
-            <span class="toggle-label">最后一小时施肥 <el-tooltip content="仅在作物成熟前最后1小时内施肥" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
+            <span class="toggle-label">最后一个阶段施肥 <el-tooltip content="仅在作物成熟前最后一个阶段施肥" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
             <el-switch v-model="toggles.lastTimeFertilize" @change="saveToggles" />
           </div>
           <div class="toggle-row">
@@ -132,6 +132,10 @@
           <div class="toggle-row">
             <span class="toggle-label">使用化肥礼包 <el-tooltip content="自动使用化肥礼包填充容器" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
             <el-switch v-model="toggles.autoFertilizerUse" @change="saveToggles" />
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">自动购买种子 <el-tooltip content="开启后会自动购买种子" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
+            <el-switch v-model="toggles.autoBuySeed" @change="saveToggles" />
           </div>
           <div class="toggle-row">
             <span class="toggle-label">调试模式 <el-tooltip content="开启后将记录详细的网络请求日志" placement="top"><el-icon :size="14"><QuestionFilled /></el-icon></el-tooltip></span>
@@ -237,7 +241,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getAccountSnapshot, updateToggles, startBot, stopBot, startQrLogin, cancelQrLogin } from '../api/index.js'
+import { getAccountSnapshot, updateToggles, updateAccountConfig, startBot, stopBot, startQrLogin, cancelQrLogin } from '../api/index.js'
 import { onEvent, offEvent } from '../socket/index.js'
 import QrCodeDialog from '../components/QrCodeDialog.vue'
 

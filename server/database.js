@@ -109,6 +109,8 @@ async function initDatabase() {
             farm_interval INTEGER DEFAULT 10000,
             friend_interval INTEGER DEFAULT 10000,
             auto_start INTEGER DEFAULT 0,
+            auto_buy_seed INTEGER DEFAULT 0,
+            auto_buy_seed_interval INTEGER DEFAULT 300000,
             last_login_at TEXT,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))

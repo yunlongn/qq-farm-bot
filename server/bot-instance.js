@@ -69,6 +69,7 @@ class BotInstance extends EventEmitter {
      * @param {number} opts.farmOperationMaxDelay - 随机操作延迟上限 ms
      * @param {number} opts.farmOperationMinDelay - 随机操作延迟下限 ms
      * @param {number} opts.forceLowestLevelCrop - 强制种植最低等级作物（跳过效率分析，通常是白萝卜）
+     * @param {number} opts.autoBuySeed - autoBuySeed
      */
     constructor(userId, opts = {}) {
         super();
@@ -82,6 +83,7 @@ class BotInstance extends EventEmitter {
         this.friendTimeRange = opts.friendTimeRange || ['09:00', '23:00'];
         this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
         this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 5;
+        this.autoBuySeed = opts.autoBuySeed || false;
 
         // ---------- 运行状态 ----------
         this.status = 'idle'; // idle | qr-pending | connecting | running | stopped | error
@@ -165,6 +167,7 @@ class BotInstance extends EventEmitter {
             autoTask: true,            // 自动完成并领取任务
             autoSell: true,            // 自动卖出仓库作物
             autoBuyFertilizer: false,   // 自动购买化肥（金币）
+            autoBuySeed: false,         // 自动购买种子
             
             // ========== 每日奖励功能 ==========
             autoFreeGifts: true,       // 商城免费礼包
@@ -555,16 +558,20 @@ class BotInstance extends EventEmitter {
                     this.startFriendLoop();
                     this._initTaskSystem();
                     setTimeout(() => this._debugSellFruits(), 5000);
+                 
                     setInterval(async () => {
-                        let bestSeed;
-                        try {bestSeed = await this.findBestSeed(1);} catch (e) {return;}
-                        if (!bestSeed) return;
-                        const seedName = getPlantNameBySeedId(bestSeed.seedId);
-                        try {
-                            const buyReply = await this.buyGoods(bestSeed.goodsId, 1, bestSeed.price);
-                            this.log('购买', `每五分钟每一次萝卜 已购买 ${seedName}种子 × 1 | 花费: ${bestSeed.price}金币 ${JSON.stringify(buyReply)}`);
-                        } catch (e) {
-                            this.logWarn('购买', e.message);
+                        // 自动购买种子
+                        if (this.autoBuySeed) {
+                            let bestSeed;
+                            try {bestSeed = await this.findBestSeed(1);} catch (e) {return;}
+                            if (!bestSeed) return;
+                            const seedName = getPlantNameBySeedId(bestSeed.seedId);
+                            try {
+                                const buyReply = await this.buyGoods(bestSeed.goodsId, 1, bestSeed.price);
+                                this.log('购买', `自动购买 已购买 ${seedName}种子 × 1 | 花费: ${bestSeed.price}金币 ${JSON.stringify(buyReply)}`);
+                            } catch (e) {
+                                this.logWarn('购买', e.message);
+                            }
                         }
                     }, 1000 * 60 * 5);
                     this._startSellLoop(60000);
@@ -745,7 +752,7 @@ class BotInstance extends EventEmitter {
             } catch (e) {
                 this.logWarn('种植', `土地#${landId} 失败: ${e.message}`);
             }
-            if (landIds.length > 1) await sleep(200);
+            if (landIds.length > 1) await sleep(100);
         }
         return successCount;
     }
@@ -963,7 +970,7 @@ class BotInstance extends EventEmitter {
                 }
             }
             const phaseName = PHASE_NAMES[phaseVal] || '生长中';
-            result.growingDetails.push({ landId: id, name: plantName, phase: phaseName, timeLeft, leftSecs: secs0 });
+            result.growingDetails.push({ landId: id, name: plantName, phase: phaseName, timeLeft, leftSecs: secs0, phases: plant.phases });
             result.growing.push(id);
         }
         return result;
@@ -1110,7 +1117,7 @@ class BotInstance extends EventEmitter {
                     if (d.timeLeft && (!g.timeLeft || d.timeLeft < g.timeLeft)) g.timeLeft = d.timeLeft;
                     if (this.featureToggles.autoFertilize && this.featureToggles.lastTimeFertilize) {
                         // 获取最后的剩余秒数，判断是否需要施肥
-                        if (d.leftSecs && d.leftSecs < randomSeconds) {
+                        if (d.phases && d.phases.length === 2) {
                             plantedLands.push(d.landId)
                         }
                     }
@@ -2280,6 +2287,16 @@ class BotInstance extends EventEmitter {
             userState: { ...this.userState },
             startedAt: this.startedAt,
         });
+    }
+
+    /**
+     * 更新功能开关
+     * @param {object} toggles - 功能开关对象
+     */
+    updateToggles(toggles) {
+        if (toggles) {
+            this.featureToggles = { ...this.featureToggles, ...toggles };
+        }
     }
 
     /**
