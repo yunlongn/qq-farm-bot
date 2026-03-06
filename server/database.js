@@ -111,6 +111,7 @@ async function initDatabase() {
             auto_start INTEGER DEFAULT 0,
             auto_buy_seed INTEGER DEFAULT 0,
             auto_buy_seed_interval INTEGER DEFAULT 300000,
+            created_by INTEGER DEFAULT 0,
             last_login_at TEXT,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             updated_at TEXT DEFAULT (datetime('now','localtime'))
@@ -137,6 +138,8 @@ async function initDatabase() {
             password_hash TEXT NOT NULL,
             role TEXT DEFAULT 'user',
             allowed_uins TEXT DEFAULT '',
+            max_users INTEGER DEFAULT 0,
+            expire_at TEXT,
             created_at TEXT DEFAULT (datetime('now','localtime'))
         )
     `);
@@ -167,6 +170,11 @@ async function initDatabase() {
     try { db.run(`ALTER TABLE users ADD COLUMN farm_operation_max_delay INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
     // 迁移: 添加调试模式列
     try { db.run(`ALTER TABLE users ADD COLUMN debug_mode INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    // 迁移: 添加创建人ID列
+    try { db.run(`ALTER TABLE users ADD COLUMN created_by INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    // 迁移: 添加管理员最大用户数和到期时间列
+    try { db.run(`ALTER TABLE admin_users ADD COLUMN max_users INTEGER DEFAULT 0`); } catch (e) { /* 列已存在 */ }
+    try { db.run(`ALTER TABLE admin_users ADD COLUMN expire_at TEXT`); } catch (e) { /* 列已存在 */ }
 
     saveToFile();
 
@@ -191,9 +199,9 @@ function getUserById(id) {
     return queryOne('SELECT * FROM users WHERE id = ?', [id]);
 }
 
-function createUser({ uin, nickname = '', platform = 'qq', farmInterval = 10000, friendInterval = 10000 }) {
-    run(`INSERT INTO users (uin, nickname, platform, farm_interval, friend_interval) VALUES (?, ?, ?, ?, ?)`,
-        [uin, nickname, platform, farmInterval, friendInterval]);
+function createUser({ uin, nickname = '', platform = 'qq', farmInterval = 10000, friendInterval = 10000, createdBy = 0 }) {
+    run(`INSERT INTO users (uin, nickname, platform, farm_interval, friend_interval, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
+        [uin, nickname, platform, farmInterval, friendInterval, createdBy]);
     saveToFile();
     return getUserByUin(uin);
 }
@@ -288,9 +296,9 @@ function getAllAdminUsers() {
     return queryAll('SELECT id, username, role, allowed_uins, created_at FROM admin_users ORDER BY created_at');
 }
 
-function createAdminUser({ username, passwordHash, role = 'user', allowedUins = '' }) {
-    run(`INSERT INTO admin_users (username, password_hash, role, allowed_uins) VALUES (?, ?, ?, ?)`,
-        [username, passwordHash, role, allowedUins]);
+function createAdminUser({ username, passwordHash, role = 'user', allowedUins = '', maxUsers = 0, expireAt = null }) {
+    run(`INSERT INTO admin_users (username, password_hash, role, allowed_uins, max_users, expire_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        [username, passwordHash, role, allowedUins, maxUsers, expireAt]);
     saveToFile();
     return getAdminUser(username);
 }

@@ -110,6 +110,7 @@ class BotManager extends EventEmitter {
                 platform,
                 farmInterval: opts.farmInterval || CONFIG.farmCheckInterval,
                 friendInterval: opts.friendInterval || CONFIG.friendCheckInterval,
+                createdBy: opts.createdBy || 0,
             });
         }
 

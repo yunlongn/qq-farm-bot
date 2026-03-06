@@ -83,7 +83,6 @@ class BotInstance extends EventEmitter {
         this.friendTimeRange = opts.friendTimeRange || ['09:00', '23:00'];
         this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
         this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 5;
-        this.autoBuySeed = opts.autoBuySeed || false;
 
         // ---------- 运行状态 ----------
         this.status = 'idle'; // idle | qr-pending | connecting | running | stopped | error
@@ -561,7 +560,7 @@ class BotInstance extends EventEmitter {
                  
                     setInterval(async () => {
                         // 自动购买种子
-                        if (this.autoBuySeed) {
+                        if (this.featureToggles.autoBuySeed) {
                             let bestSeed;
                             try {bestSeed = await this.findBestSeed(1);} catch (e) {return;}
                             if (!bestSeed) return;

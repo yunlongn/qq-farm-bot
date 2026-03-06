@@ -120,7 +120,14 @@ router.post('/accounts/add-by-code', async (req, res) => {
         const actualPlatform = 'wx';
 
         // 创建用户记录
-        db.createUser({ uin, platform: actualPlatform, farmInterval: farmInterval || 10000, friendInterval: friendInterval || 10000 });
+        db.createUser(
+            {
+                uin,
+                platform: actualPlatform,
+                farmInterval: farmInterval || 10000,
+                friendInterval: friendInterval || 10000,
+                createdBy: req.user.id
+            });
 
         // 保存 session
         db.saveSession(uin, code);
@@ -178,6 +185,11 @@ router.get('/accounts', (req, res) => {
             return false;
         };
 
+        // 普通用户只显示自己的账号，管理员显示所有账号
+        if (!isAdmin) {
+            accounts = accounts.filter(a => hasAllowed(a.uin));
+        }
+
         accounts = accounts.map(a => {
             // 判定是否为本人账号（管理员视为拥有所有账号）
             const isOwn = isAdmin || hasAllowed(a.uin);
@@ -191,26 +203,12 @@ router.get('/accounts', (req, res) => {
             // 显示标识：QQ用户显示QQ号，微信用户显示 "微信用户"
             const displayUin = isWx ? '微信用户' : a.uin;
 
-            if (isOwn) {
-                return { 
-                    ...a, 
-                    isOwn: true, 
-                    displayUin,
-                    avatar: avatarUrl 
-                };
-            } else {
-                const maskedUin = isWx ? '微信用户' : (a.uin.slice(0, 3) + '****' + a.uin.slice(-2));
-                const maskedNick = a.nickname ? a.nickname.charAt(0) + '***' : '隐藏用户';
-                
-                return {
-                    ...a,
-                    uin: a.uin, // 保留真实uin用于前端key和路由
-                    displayUin: maskedUin, 
-                    nickname: maskedNick,
-                    isOwn: false,
-                    avatar: avatarUrl
-                };
-            }
+            return { 
+                ...a, 
+                isOwn: true, 
+                displayUin,
+                avatar: avatarUrl 
+            };
         });
 
         // 排序逻辑：自己的账号排在最前面
@@ -372,11 +370,26 @@ router.get('/crop-list', (req, res) => {
 // ============================================================
 
 /** POST /api/accounts/:uin/qr-login */
-router.post('/accounts/:uin/qr-login', async (req, res) => {
+router.post('/accounts/:uin/qr-login', authMiddleware, async (req, res) => {
     try {
         const { uin } = req.params;
         const { platform, farmInterval, friendInterval } = req.body || {};
-        const result = await botManager.startQrLogin(uin, { platform, farmInterval, friendInterval });
+        
+        // 检查管理员是否达到最大用户数限制
+        const adminUser = db.getAdminUserById(req.user.id);
+        if (adminUser && adminUser.max_users > 0) {
+            const userCount = db.getAllUsers().filter(user => user.created_by === req.user.id).length;
+            if (userCount >= adminUser.max_users) {
+                return res.status(400).json({ ok: false, error: `已达到最大用户数限制 (${adminUser.max_users}个)` });
+            }
+        }
+        
+        const result = await botManager.startQrLogin(uin, { 
+            platform, 
+            farmInterval, 
+            friendInterval, 
+            createdBy: req.user.id 
+        });
 
         // 普通用户添加账号时，自动绑定到该用户
         if (req.user.role !== 'admin') {
@@ -503,10 +516,10 @@ router.get('/admin/users', adminOnly, (req, res) => {
 /** POST /api/admin/users */
 router.post('/admin/users', adminOnly, (req, res) => {
     try {
-        const { username, password, role = 'user', allowedUins = '' } = req.body || {};
+        const { username, password, role = 'user', allowedUins = '', maxUsers = 0, expireAt = null } = req.body || {};
         if (!username || !password) return res.status(400).json({ ok: false, error: '用户名和密码不能为空' });
         if (db.getAdminUser(username)) return res.status(400).json({ ok: false, error: '用户名已存在' });
-        db.createAdminUser({ username, passwordHash: hashPassword(password), role, allowedUins });
+        db.createAdminUser({ username, passwordHash: hashPassword(password), role, allowedUins, maxUsers, expireAt });
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ ok: false, error: err.message });
@@ -516,11 +529,13 @@ router.post('/admin/users', adminOnly, (req, res) => {
 /** PUT /api/admin/users/:id */
 router.put('/admin/users/:id', adminOnly, (req, res) => {
     try {
-        const { role, allowedUins, password } = req.body || {};
+        const { role, allowedUins, password, maxUsers, expireAt } = req.body || {};
         const updates = {};
         if (role !== undefined) updates.role = role;
         if (allowedUins !== undefined) updates.allowed_uins = allowedUins;
         if (password) updates.password_hash = hashPassword(password);
+        if (maxUsers !== undefined) updates.max_users = maxUsers;
+        if (expireAt !== undefined) updates.expire_at = expireAt;
         db.updateAdminUser(parseInt(req.params.id), updates);
         res.json({ ok: true });
     } catch (err) {

@@ -10,7 +10,7 @@
       <!-- 登录/注册切换 -->
       <div class="tab-switch">
         <div class="tab-item" :class="{ active: mode === 'login' }" @click="mode = 'login'">登录</div>
-        <div class="tab-item" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</div>
+<!--        <div class="tab-item" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</div>-->
       </div>
 
       <!-- 登录表单 -->

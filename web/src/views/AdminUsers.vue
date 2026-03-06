@@ -35,6 +35,19 @@
             <span v-else class="hint-text">未分配</span>
           </template>
         </el-table-column>
+        <el-table-column label="最大用户数" width="120" align="center">
+          <template #default="{ row }">
+            <span>{{ row.maxUsers || 0 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="到期时间" min-width="150" align="center">
+          <template #default="{ row }">
+            <span v-if="row.expireAt" :class="{ 'expired': new Date(row.expireAt) < new Date() }">
+              {{ row.expireAt }}
+            </span>
+            <span v-else class="hint-text">永久</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="160" align="center">
           <template #default="{ row }">
             <el-button text type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -80,6 +93,20 @@
           </el-select>
           <div class="field-hint">管理员可访问所有账号，普通用户仅限已分配的</div>
         </el-form-item>
+        <el-form-item label="最大用户数">
+          <el-input-number v-model="form.maxUsers" :min="0" style="width: 100%" placeholder="0表示无限制" />
+          <div class="field-hint">限制该管理员可创建的账号数量，0表示无限制</div>
+        </el-form-item>
+        <el-form-item label="到期时间">
+          <el-date-picker
+            v-model="form.expireAt"
+            type="datetime"
+            placeholder="选择到期时间"
+            style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+          <div class="field-hint">留空表示永久有效</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -108,6 +135,8 @@ const form = ref({
   password: '',
   role: 'user',
   allowedUins: [],
+  maxUsers: 0,
+  expireAt: null,
 })
 
 async function fetchUsers() {
@@ -118,6 +147,8 @@ async function fetchUsers() {
       ...u,
       // allowed_uins 是逗号分隔的字符串，不是 JSON
       allowedUins: u.allowed_uins ? u.allowed_uins.split(',').map(s => s.trim()).filter(Boolean) : [],
+      maxUsers: u.max_users || 0,
+      expireAt: u.expire_at || null,
     }))
   } catch (e) { 
     console.error('fetchUsers error:', e)
@@ -135,7 +166,7 @@ async function fetchAccounts() {
 
 function openAdd() {
   isEdit.value = false
-  form.value = { id: null, username: '', password: '', role: 'user', allowedUins: [] }
+  form.value = { id: null, username: '', password: '', role: 'user', allowedUins: [], maxUsers: 0, expireAt: null }
   dialogVisible.value = true
 }
 
@@ -147,6 +178,8 @@ function openEdit(row) {
     password: '',
     role: row.role,
     allowedUins: [...(row.allowedUins || [])],
+    maxUsers: row.maxUsers || 0,
+    expireAt: row.expireAt || null,
   }
   dialogVisible.value = true
 }
@@ -168,6 +201,8 @@ async function handleSave() {
       role: form.value.role,
       // 使用逗号分隔格式，不是 JSON
       allowedUins: form.value.role === 'admin' ? '' : form.value.allowedUins.join(','),
+      maxUsers: form.value.maxUsers,
+      expireAt: form.value.expireAt,
     }
     if (form.value.password) {
       payload.password = form.value.password
@@ -241,6 +276,11 @@ onMounted(() => {
   color: var(--text-muted);
   font-size: 12px;
   margin-top: 4px;
+}
+
+.expired {
+  color: var(--el-color-danger);
+  font-weight: 500;
 }
 
 /* 暗色表格 */

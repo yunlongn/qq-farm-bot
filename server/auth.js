@@ -62,6 +62,17 @@ function authMiddleware(req, res, next) {
     if (!payload) {
         return res.status(401).json({ ok: false, error: '登录已过期，请重新登录' });
     }
+    
+    // 检查管理员是否到期
+    const adminUser = db.getAdminUserById(payload.id);
+    if (adminUser && adminUser.expire_at) {
+        const now = new Date();
+        const expireAt = new Date(adminUser.expire_at);
+        if (now > expireAt) {
+            return res.status(401).json({ ok: false, error: '账号已过期，请联系管理员' });
+        }
+    }
+    
     req.user = payload; // { id, username, role, allowedUins }
     next();
 }
