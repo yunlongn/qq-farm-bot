@@ -81,8 +81,8 @@ class BotInstance extends EventEmitter {
         this.preferredSeedId = opts.preferredSeedId || 20002; // 0 = 自动选择
         // friendTimeRange 默认为早上九点到晚上十点（单位小时，24小时制
         this.friendTimeRange = opts.friendTimeRange || ['09:00', '23:00'];
-        this.farmOperationMinDelay = opts.farmOperationMinDelay || 1;
-        this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 5;
+        this.farmOperationMinDelay = opts.farmOperationMinDelay || 5;
+        this.farmOperationMaxDelay = opts.farmOperationMaxDelay || 10;
 
         // ---------- 运行状态 ----------
         this.status = 'idle'; // idle | qr-pending | connecting | running | stopped | error
@@ -166,7 +166,7 @@ class BotInstance extends EventEmitter {
             autoTask: true,            // 自动完成并领取任务
             autoSell: true,            // 自动卖出仓库作物
             autoBuyFertilizer: false,   // 自动购买化肥（金币）
-            autoBuySeed: false,         // 自动购买种子
+            autoBuySeed: true,         // 自动购买种子
             
             // ========== 每日奖励功能 ==========
             autoFreeGifts: true,       // 商城免费礼包
@@ -540,6 +540,7 @@ class BotInstance extends EventEmitter {
             this._setStatus('connecting');
             const url = `${CONFIG.serverUrl}?platform=${this.platform}&os=${CONFIG.os}&ver=${CONFIG.clientVersion}&code=${code}&openID=`;
 
+            console.log("url", url)
             this.ws = new WebSocket(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13)',

@@ -13,7 +13,7 @@
 <!--        <div class="tab-item" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</div>-->
       </div>
 
-      <!-- 登录表单 -->
+      <!-- 登录表单1 -->
       <el-form v-if="mode === 'login'" :model="form" @submit.prevent="handleLogin" class="login-form">
         <el-form-item>
           <el-input
